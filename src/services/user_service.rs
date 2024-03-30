@@ -27,7 +27,9 @@ impl UserServiceImpl {
 }
 
 impl UserService for UserServiceImpl {
-    fn create_user(&self, user_data: NewUser) -> Result<NewUser, String> {
+    fn create_user(&self, mut user_data: NewUser) -> Result<NewUser, String> {
+        let hashed_password = crate::utils::hash::hashData(user_data.password.as_str());
+        user_data.password = hashed_password;
         let user_response = self.us_repo.save(user_data);
         match user_response {
             Ok(user) => Ok(user),
