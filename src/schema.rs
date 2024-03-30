@@ -2,7 +2,7 @@
 
 diesel::table! {
     users (id) {
-        id -> Unsigned<Bigint>,
+        id -> Int4,
         #[max_length = 255]
         name -> Varchar,
         #[max_length = 255]

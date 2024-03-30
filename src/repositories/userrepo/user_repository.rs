@@ -1,50 +1,49 @@
-use crate::domain::user::User;
+use trait_async::trait_async;
+use dyn_clone::DynClone;
+use crate::domain::user::NewUser;
+use diesel::{
+    r2d2::{ConnectionManager, Pool},
+    PgConnection, RunQueryDsl
+};
 
-trait UserRepository {
-    fn find_by_id(&self, id: u64) -> Option<User>;
-    fn find_by_username(&self, username: &str) -> Option<User>;
-    fn save(&self, user: User) -> Result<(), String>;
-    fn delete(&self, id: u64) -> Result<(), String>;
+#[trait_async]
+pub trait UserRepository: DynClone + Send {
+    fn save(&self, user_data: NewUser) -> Result<NewUser, String>;
 }
 
+dyn_clone::clone_trait_object!(UserRepository);
+
+
+#[derive(Clone)]
 pub struct UserRepositoryImpl {
-    users: Vec<User>
+    pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 impl UserRepositoryImpl {
-    pub fn new() -> Self {
+    pub fn new(
+            pool: Pool<ConnectionManager<PgConnection>>,
+        ) -> Self {
         Self {
-            users: vec![]
+            pool,
         }
     }
 }
 
 impl UserRepository for UserRepositoryImpl {
-    fn find_by_id(&self, id: u64) -> Option<User> {
-        self.users.iter().find(|user| user.id == id).cloned()
-    }
+    fn save(&self, user_data: NewUser) -> Result<NewUser, String> {
+        let mut conn = self.pool.get().unwrap();
+        use crate::schema::users;
 
-    fn find_by_username(&self, username: &str) -> Option<User> {
-        self.users.iter().find(|user| user.username == username).cloned()
-    }
-
-    fn save(&self, user: User) -> Result<(), String> {
-        if self.users.iter().any(|u| u.id == user.id) {
-            return Err("User already exists".to_string());
+        let results = diesel::insert_into(users::table)
+            .values(&user_data)
+            .execute(&mut conn);
+        
+        match results {
+            Ok(_) => println!("User created"),
+            Err(e) => println!("Error creating user: {:?}", e),
         }
 
-        if self.users.iter().any(|u| u.username == user.username) {
-            return Err("Username already exists".to_string());
-        }
-
-        Ok(())
-    }
-
-    fn delete(&self, id: u64) -> Result<(), String> {
-        if self.users.iter().any(|u| u.id == id) {
-            return Err("User not found".to_string());
-        }
-
-        Ok(())
+        println!("Creating user");
+        Ok(user_data)
     }
 }

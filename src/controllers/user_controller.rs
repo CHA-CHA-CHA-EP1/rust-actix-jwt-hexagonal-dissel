@@ -16,8 +16,11 @@ impl UserController {
 
 impl UserController {
     pub async fn create_user(&self, user_data: web::Json<NewUser>) -> impl Responder {
-        println!("{:?}", user_data);
-        HttpResponse::Ok().body("Creating user")
+        let user_data = user_data.into_inner();
+        match self.user_service.create_user(user_data) {
+            Ok(_) => return HttpResponse::Created().body("Creating user"),
+            Err(_) => return HttpResponse::InternalServerError().body("Error creating user")
+        }
     }
 }
 
